@@ -10,7 +10,7 @@ def show_settings():
     st.markdown('<div style="font-size:28px; font-weight:800; color:#f1f5f9; margin-bottom:4px;">⚙️ Ustawienia</div>', unsafe_allow_html=True)
     st.markdown('<div style="color:#4b5563; font-size:13px; margin-bottom:24px;">Konfiguracja połączenia i preferencji</div>', unsafe_allow_html=True)
 
-    tab1, tab2, tab3 = st.tabs(["🔑 API Binance", "🎚️ Preferencje", "🔔 Alerty"])
+    tab1, tab2, tab3, tab4 = st.tabs(["🔑 API Binance", "🎚️ Preferencje", "🔔 Alerty", "🤖 Claude AI"])
 
     with tab1:
         st.markdown('<div class="section-header">POŁĄCZENIE Z BINANCE</div>', unsafe_allow_html=True)
@@ -161,5 +161,66 @@ def show_settings():
                 <span style="color:#f59e0b;">⚠️ UWAGA:</span> Aplikacja służy wyłącznie jako narzędzie analityczne.<br>
                 Nie stanowi doradztwa inwestycyjnego. Inwestuj odpowiedzialnie.
             </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with tab4:
+        st.markdown('<div class="section-header">KLUCZ API ANTHROPIC (CLAUDE AI)</div>', unsafe_allow_html=True)
+
+        st.markdown("""
+        <div class="alert-neutral" style="margin-bottom:20px;">
+            <div style="color:#818cf8; font-weight:600; margin-bottom:6px;">🤖 Claude AI — Analiza sygnałów</div>
+            <div style="color:#9ca3af; font-size:13px;">
+                Claude analizuje sygnały techniczne i daje pogłębioną ocenę w języku naturalnym.<br>
+                Klucz API znajdziesz na <strong style="color:#818cf8;">console.anthropic.com</strong>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        anthropic_key = st.text_input(
+            "Anthropic API Key",
+            type="password",
+            placeholder="sk-ant-...",
+            key="anthropic_key_input"
+        )
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✅ Zapisz klucz Claude"):
+                if anthropic_key and anthropic_key.startswith("sk-ant-"):
+                    st.session_state["anthropic_api_key"] = anthropic_key
+                    st.success("Klucz Claude AI zapisany!")
+                elif anthropic_key:
+                    st.warning("Klucz powinien zaczynać się od 'sk-ant-'")
+                else:
+                    st.warning("Wpisz klucz API.")
+        with col2:
+            if st.button("🔴 Usuń klucz Claude"):
+                st.session_state.pop("anthropic_api_key", None)
+                st.success("Klucz usunięty.")
+
+        has_claude_key = bool(st.session_state.get("anthropic_api_key"))
+        st.markdown(f"""
+        <div class="metric-card" style="margin-top:16px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div style="width:10px; height:10px; border-radius:50%; background:{'#10b981' if has_claude_key else '#6b7280'};"></div>
+                <div>
+                    <div style="color:#f1f5f9; font-weight:600;">Claude AI (Anthropic)</div>
+                    <div style="color:{'#10b981' if has_claude_key else '#6b7280'}; font-size:12px;">
+                        {'● Klucz aktywny — analiza AI dostępna w zakładce Sygnały' if has_claude_key else '○ Brak klucza — wpisz powyżej'}
+                    </div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+        <div style="background:#151821; border:1px solid #252a3a; border-radius:8px; padding:14px 18px; margin-top:12px;">
+            <div style="color:#f59e0b; font-size:12px; font-weight:600; margin-bottom:8px;">⚠️ BEZPIECZEŃSTWO</div>
+            <ul style="color:#6b7280; font-size:12px; margin:0; padding-left:16px;">
+                <li>Klucz przechowywany tylko w sesji (nie zapisywany na dysku)</li>
+                <li>Nie udostępniaj klucza nikomu</li>
+                <li>Możesz go unieważnić w każdej chwili na console.anthropic.com</li>
+            </ul>
         </div>
         """, unsafe_allow_html=True)

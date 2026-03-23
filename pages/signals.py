@@ -8,6 +8,7 @@ import pandas as pd
 from core.binance_client import get_klines, get_price, POPULAR_PAIRS
 from core.signals import get_signal_for_timeframe, multi_timeframe_analysis
 from core.indicators import compute_all_indicators
+from core.ai_advisor import analyze_with_claude
 import time
 
 
@@ -204,6 +205,39 @@ def show_signals():
                         ind_row("Vol Ratio", last.get("volume_ratio"), bullish_above=1.0),
                         unsafe_allow_html=True
                     )
+
+                # === Claude AI Analysis ===
+                st.markdown('<div class="section-header" style="margin-top:28px;">🤖 ANALIZA CLAUDE AI</div>', unsafe_allow_html=True)
+
+                if st.button("🤖 Zapytaj Claude AI o ten sygnał", key="claude_analyze"):
+                    # Zbuduj MTF dict dla Claude
+                    mtf_for_claude = {}
+                    for tf in ["1m", "5m", "15m", "1h", "4h"]:
+                        df_mtf = get_klines(symbol, tf, 100)
+                        if not df_mtf.empty:
+                            mtf_for_claude[tf] = get_signal_for_timeframe(df_mtf, tf)
+
+                    # Kluczowe wskaźniki jako dict
+                    indicators_for_claude = {
+                        "RSI(14)": last.get("rsi_14"),
+                        "RSI(7)": last.get("rsi_7"),
+                        "MACD Line": last.get("macd_line"),
+                        "MACD Hist": last.get("macd_hist"),
+                        "Stoch K": last.get("stoch_k"),
+                        "Stoch D": last.get("stoch_d"),
+                        "BB %B": last.get("bb_pct_b"),
+                        "BB Bandwidth": last.get("bb_bandwidth"),
+                        "ATR%": last.get("atr_pct"),
+                        "Vol Ratio": last.get("volume_ratio"),
+                        "Williams %R": last.get("williams_r"),
+                        "CCI": last.get("cci"),
+                        "EMA9": last.get("ema_9"),
+                        "EMA21": last.get("ema_21"),
+                        "EMA50": last.get("ema_50"),
+                    }
+
+                    with st.spinner("Claude analizuje sygnał..."):
+                        analyze_with_claude(symbol, timeframe, signal, indicators_for_claude, mtf_for_claude)
 
     # === TAB 2: Market Scanner ===
     with tab2:
