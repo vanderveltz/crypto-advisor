@@ -9,8 +9,10 @@ from core.signals import TradingSignal
 
 
 def get_anthropic_client() -> anthropic.Anthropic | None:
-    """Pobiera klienta Anthropic z session_state lub zmiennej środowiskowej."""
+    """Pobiera klienta Anthropic: session_state → st.secrets → brak."""
     api_key = st.session_state.get("anthropic_api_key")
+    if not api_key:
+        api_key = st.secrets.get("ANTHROPIC_API_KEY")
     if not api_key:
         return None
     return anthropic.Anthropic(api_key=api_key)
