@@ -130,10 +130,10 @@ header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
-from pages.dashboard import show_dashboard
-from pages.signals import show_signals
-from pages.analysis import show_analysis
-from pages.settings import show_settings
+from views.dashboard import show_dashboard
+from views.signals import show_signals
+from views.analysis import show_analysis
+from views.settings import show_settings
 
 # Sidebar navigation
 with st.sidebar:
