@@ -24,7 +24,6 @@ code, .mono { font-family: 'JetBrains Mono', monospace; }
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 header {visibility: hidden;}
-[data-testid="stSidebarNav"] {display: none;}
 
 /* Metric cards */
 .metric-card {

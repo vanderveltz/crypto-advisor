@@ -76,7 +76,7 @@ def get_price(symbol: str) -> dict:
             timeout=10
         )
         data = r.json()
-        if not data:
+        if not isinstance(data, list) or not data:
             return {"error": "Brak danych CoinGecko"}
 
         c = data[0]
@@ -178,6 +178,8 @@ def get_top_gainers(limit: int = 10):
             timeout=10
         )
         data = r.json()
+        if not isinstance(data, list) or not data:
+            return pd.DataFrame(), pd.DataFrame()
         df = pd.DataFrame(data)
         df = df.dropna(subset=["price_change_percentage_24h"])
         df["priceChangePercent"] = df["price_change_percentage_24h"].astype(float)
