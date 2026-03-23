@@ -145,7 +145,7 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     page = st.radio(
-        "",
+        "Nawigacja",
         ["📊  Dashboard", "🎯  Sygnały", "🔬  Analiza", "⚙️  Ustawienia"],
         label_visibility="collapsed"
     )
