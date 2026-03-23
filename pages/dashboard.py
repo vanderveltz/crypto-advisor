@@ -31,6 +31,8 @@ def show_dashboard():
 
     # Price metrics
     data = get_price(selected)
+    if "error" in data:
+        st.error(f"Błąd połączenia z Binance API: {data['error']}")
     if "error" not in data:
         price = data["price"]
         change = data["change_pct"]
@@ -127,6 +129,9 @@ def show_dashboard():
     col_g, col_l = st.columns(2)
 
     gainers, losers = get_top_gainers(8)
+
+    if gainers.empty and losers.empty:
+        st.warning("Brak danych Top Movers — Binance API niedostępne lub rate limit.")
 
     with col_g:
         st.markdown('<div class="section-header">🚀 TOP WZROSTY (24H)</div>', unsafe_allow_html=True)
