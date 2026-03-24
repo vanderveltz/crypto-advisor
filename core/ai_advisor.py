@@ -6,12 +6,19 @@ Integracja z Claude AI — analiza sygnałów tradingowych
 import os
 import streamlit as st
 import anthropic
-from langfuse import Langfuse
 from core.signals import TradingSignal
 
+try:
+    from langfuse import Langfuse
+    _LANGFUSE_AVAILABLE = True
+except ImportError:
+    _LANGFUSE_AVAILABLE = False
 
-def _get_langfuse() -> Langfuse | None:
+
+def _get_langfuse():
     """Inicjalizuje klienta Langfuse z env vars lub st.secrets."""
+    if not _LANGFUSE_AVAILABLE:
+        return None
     try:
         secret_key = os.environ.get("LANGFUSE_SECRET_KEY")
         public_key = os.environ.get("LANGFUSE_PUBLIC_KEY")
