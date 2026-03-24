@@ -9,33 +9,21 @@ import anthropic
 from core.signals import TradingSignal
 
 try:
-    from langfuse import Langfuse
+    from langfuse import get_client as _langfuse_get_client
     _LANGFUSE_AVAILABLE = True
 except ImportError:
     _LANGFUSE_AVAILABLE = False
 
 
 def _get_langfuse():
-    """Inicjalizuje klienta Langfuse z env vars lub st.secrets."""
     if not _LANGFUSE_AVAILABLE:
         return None
     try:
-        secret_key = os.environ.get("LANGFUSE_SECRET_KEY")
-        public_key = os.environ.get("LANGFUSE_PUBLIC_KEY")
-        host = os.environ.get("LANGFUSE_BASE_URL", "https://cloud.langfuse.com")
-
-        if not secret_key or not public_key:
-            try:
-                secret_key = st.secrets.get("LANGFUSE_SECRET_KEY")
-                public_key = st.secrets.get("LANGFUSE_PUBLIC_KEY")
-                host = st.secrets.get("LANGFUSE_BASE_URL", host)
-            except Exception:
-                pass
-
-        if not secret_key or not public_key:
-            return None
-
-        return Langfuse(secret_key=secret_key, public_key=public_key, host=host)
+        # v3 czyta LANGFUSE_SECRET_KEY, LANGFUSE_PUBLIC_KEY, LANGFUSE_HOST z env
+        # Obsługujemy też LANGFUSE_BASE_URL jako alias dla LANGFUSE_HOST
+        if not os.environ.get("LANGFUSE_HOST") and os.environ.get("LANGFUSE_BASE_URL"):
+            os.environ["LANGFUSE_HOST"] = os.environ["LANGFUSE_BASE_URL"]
+        return _langfuse_get_client()
     except Exception:
         return None
 
@@ -120,17 +108,6 @@ Odpowiedz w 4 punktach:
     full_text = ""
 
     langfuse = _get_langfuse()
-    trace = langfuse.trace(
-        name="crypto-signal-analysis",
-        metadata={"symbol": symbol, "timeframe": timeframe, "signal": signal.action}
-    ) if langfuse else None
-
-    generation = trace.generation(
-        name="claude-analysis",
-        model="claude-opus-4-6",
-        input=messages,
-        system=system_prompt,
-    ) if trace else None
 
     try:
         with client.messages.stream(
@@ -152,7 +129,6 @@ Odpowiedz w 4 punktach:
 
             final_message = stream.get_final_message()
 
-        # Końcowy render bez kursora
         placeholder.markdown(
             f'<div class="alert-neutral" style="border-left-color:#818cf8;">'
             f'<div style="color:#818cf8;font-size:11px;font-weight:700;margin-bottom:8px;letter-spacing:1px;">🤖 ANALIZA CLAUDE AI</div>'
@@ -161,16 +137,22 @@ Odpowiedz w 4 punktach:
             unsafe_allow_html=True
         )
 
-        if generation:
-            usage = final_message.usage
-            generation.end(
-                output=full_text,
-                usage={
-                    "input": usage.input_tokens,
-                    "output": usage.output_tokens,
-                },
-            )
-            langfuse.flush()
+        if langfuse:
+            try:
+                usage = final_message.usage
+                span = langfuse.start_as_current_span(name="crypto-signal-analysis")
+                with span:
+                    langfuse.update_current_observation(
+                        input={"symbol": symbol, "timeframe": timeframe,
+                               "signal": signal.action, "context": context},
+                        output=full_text,
+                        model="claude-opus-4-6",
+                        usage={"input": usage.input_tokens, "output": usage.output_tokens},
+                        metadata={"score": signal.score, "confidence": signal.confidence},
+                    )
+                langfuse.flush()
+            except Exception:
+                pass
 
         return True
 
@@ -180,9 +162,5 @@ Odpowiedz w 4 punktach:
         st.error("Przekroczono limit zapytań API. Spróbuj za chwilę.")
     except Exception as e:
         st.error(f"Błąd Claude API: {e}")
-
-    if generation:
-        generation.end(output=None)
-        langfuse.flush()
 
     return False
