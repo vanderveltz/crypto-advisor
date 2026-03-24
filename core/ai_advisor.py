@@ -113,7 +113,6 @@ Odpowiedz w 4 punktach:
         with client.messages.stream(
             model="claude-opus-4-6",
             max_tokens=600,
-            thinking={"type": "adaptive"},
             system=system_prompt,
             messages=messages
         ) as stream:
