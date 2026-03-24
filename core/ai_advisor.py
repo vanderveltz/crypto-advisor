@@ -3,9 +3,34 @@ core/ai_advisor.py
 Integracja z Claude AI — analiza sygnałów tradingowych
 """
 
+import os
 import streamlit as st
 import anthropic
+from langfuse import Langfuse
 from core.signals import TradingSignal
+
+
+def _get_langfuse() -> Langfuse | None:
+    """Inicjalizuje klienta Langfuse z env vars lub st.secrets."""
+    try:
+        secret_key = os.environ.get("LANGFUSE_SECRET_KEY")
+        public_key = os.environ.get("LANGFUSE_PUBLIC_KEY")
+        host = os.environ.get("LANGFUSE_BASE_URL", "https://cloud.langfuse.com")
+
+        if not secret_key or not public_key:
+            try:
+                secret_key = st.secrets.get("LANGFUSE_SECRET_KEY")
+                public_key = st.secrets.get("LANGFUSE_PUBLIC_KEY")
+                host = st.secrets.get("LANGFUSE_BASE_URL", host)
+            except Exception:
+                pass
+
+        if not secret_key or not public_key:
+            return None
+
+        return Langfuse(secret_key=secret_key, public_key=public_key, host=host)
+    except Exception:
+        return None
 
 
 def get_anthropic_client() -> anthropic.Anthropic | None:
@@ -58,6 +83,7 @@ def analyze_with_claude(symbol: str, timeframe: str, signal: TradingSignal,
                         indicators: dict, mtf_signals: dict) -> bool:
     """
     Streamuje analizę Claude AI bezpośrednio do widżetu Streamlit.
+    Loguje trace do Langfuse jeśli skonfigurowany.
     Zwraca True jeśli sukces, False jeśli brak klucza lub błąd.
     """
     client = get_anthropic_client()
@@ -82,8 +108,22 @@ Odpowiedz w 4 punktach:
 3. **Kluczowe ryzyka** — co może unieważnić ten sygnał?
 4. **Rekomendacja** — wejść teraz / poczekać na potwierdzenie / unikać (i dlaczego)"""
 
+    messages = [{"role": "user", "content": user_message}]
     placeholder = st.empty()
     full_text = ""
+
+    langfuse = _get_langfuse()
+    trace = langfuse.trace(
+        name="crypto-signal-analysis",
+        metadata={"symbol": symbol, "timeframe": timeframe, "signal": signal.action}
+    ) if langfuse else None
+
+    generation = trace.generation(
+        name="claude-analysis",
+        model="claude-opus-4-6",
+        input=messages,
+        system=system_prompt,
+    ) if trace else None
 
     try:
         with client.messages.stream(
@@ -91,7 +131,7 @@ Odpowiedz w 4 punktach:
             max_tokens=600,
             thinking={"type": "adaptive"},
             system=system_prompt,
-            messages=[{"role": "user", "content": user_message}]
+            messages=messages
         ) as stream:
             for chunk in stream.text_stream:
                 full_text += chunk
@@ -103,6 +143,8 @@ Odpowiedz w 4 punktach:
                     unsafe_allow_html=True
                 )
 
+            final_message = stream.get_final_message()
+
         # Końcowy render bez kursora
         placeholder.markdown(
             f'<div class="alert-neutral" style="border-left-color:#818cf8;">'
@@ -111,6 +153,18 @@ Odpowiedz w 4 punktach:
             f'</div>',
             unsafe_allow_html=True
         )
+
+        if generation:
+            usage = final_message.usage
+            generation.end(
+                output=full_text,
+                usage={
+                    "input": usage.input_tokens,
+                    "output": usage.output_tokens,
+                },
+            )
+            langfuse.flush()
+
         return True
 
     except anthropic.AuthenticationError:
@@ -119,5 +173,9 @@ Odpowiedz w 4 punktach:
         st.error("Przekroczono limit zapytań API. Spróbuj za chwilę.")
     except Exception as e:
         st.error(f"Błąd Claude API: {e}")
+
+    if generation:
+        generation.end(output=None)
+        langfuse.flush()
 
     return False
