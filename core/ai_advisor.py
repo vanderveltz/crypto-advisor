@@ -105,28 +105,25 @@ Odpowiedz w 4 punktach:
 
     messages = [{"role": "user", "content": user_message}]
     placeholder = st.empty()
-    full_text = ""
-
     langfuse = _get_langfuse()
 
+    placeholder.markdown(
+        '<div class="alert-neutral" style="border-left-color:#818cf8;">'
+        '<div style="color:#818cf8;font-size:11px;font-weight:700;margin-bottom:8px;letter-spacing:1px;">🤖 ANALIZA CLAUDE AI</div>'
+        '<div style="color:#d1d5db;font-size:13px;">⏳ Analizuję sygnał...</div>'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
     try:
-        with client.messages.stream(
+        response = client.messages.create(
             model="claude-opus-4-6",
             max_tokens=600,
             system=system_prompt,
             messages=messages
-        ) as stream:
-            for chunk in stream.text_stream:
-                full_text += chunk
-                placeholder.markdown(
-                    f'<div class="alert-neutral" style="border-left-color:#818cf8;">'
-                    f'<div style="color:#818cf8;font-size:11px;font-weight:700;margin-bottom:8px;letter-spacing:1px;">🤖 ANALIZA CLAUDE AI</div>'
-                    f'<div style="color:#d1d5db;font-size:13px;line-height:1.7;">{full_text}▌</div>'
-                    f'</div>',
-                    unsafe_allow_html=True
-                )
+        )
 
-            final_message = stream.get_final_message()
+        full_text = response.content[0].text
 
         placeholder.markdown(
             f'<div class="alert-neutral" style="border-left-color:#818cf8;">'
@@ -138,9 +135,8 @@ Odpowiedz w 4 punktach:
 
         if langfuse:
             try:
-                usage = final_message.usage
-                span = langfuse.start_as_current_span(name="crypto-signal-analysis")
-                with span:
+                usage = response.usage
+                with langfuse.start_as_current_span(name="crypto-signal-analysis"):
                     langfuse.update_current_observation(
                         input={"symbol": symbol, "timeframe": timeframe,
                                "signal": signal.action, "context": context},
